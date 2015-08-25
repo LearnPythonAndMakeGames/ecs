@@ -21,7 +21,7 @@ def setup_entities(number_of_cowboys=100, number_of_aliens=100):
         alien.health = Health(alien, current=100, max=100)
         alien.damage = Damage(alien, normal=5, critical=10, critical_percent=20)
         alien.humanoid = 'alien'
-        cowboys.append(alien)
+        aliens.append(alien)
 
     # Convenient dictionary splitting the two types of entities
     entities = {'cowboys': cowboys, 'aliens': aliens}
