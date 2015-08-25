@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 '''
-Installs ecs
+Installs the Entity Component System (ecs) for Python.
 '''
 from setuptools import setup
 
