@@ -1,6 +1,17 @@
 #!/usr/bin/env python
+'''
+Entity Component System for Python
+
+ecs.py provides a convenient library to utilize for the ECS pattern.
+
+'''
 import json
 from uuid import uuid4
+
+__version__ = '0.1.1'
+__license__ = 'Apache 2.0'
+__url__ = 'http://learnpythonandmakegames.github.io/ecs/'
+__author__ = 'Learn Python and Make Games'
 
 
 class Entity(object):
@@ -265,8 +276,8 @@ class System(object):
     Traceback (most recent call last):
     ...
     NotImplementedError: Abstract method
-    >>> MovementSystem.entities
-    [<Entity skeleton:2>, <Entity player:1>]
+    >>> sorted(MovementSystem.entities)
+    [<Entity player:1>, <Entity skeleton:2>]
     >>> sorted(MovementSystem.components)
     [<Position entity:player.position>, <Position entity:skeleton.position>, <Velocity entity:player.velocity>, <Velocity entity:skeleton.velocity>]
     '''
