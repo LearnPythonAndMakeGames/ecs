@@ -8,7 +8,7 @@ ecs.py provides a convenient library to utilize for the ECS pattern.
 import json
 from uuid import uuid4
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __license__ = 'Apache 2.0'
 __url__ = 'http://learnpythonandmakegames.github.io/ecs/'
 __author__ = 'Learn Python and Make Games'
@@ -108,18 +108,24 @@ class Entity(object):
         if key in super(Entity, self).__getattribute__('__slots__'):
             super(Entity, self).__setattr__(key, value)
         else:
-            # Create a relationship between the entity and its component
+            # Create relationships between the entity and components
             if isinstance(value, Component):
-                value.entity = self
-                for entity, comp in value.__class__.Catalog.iteritems():
-                    if comp == value:
-                        value.__class__.Catalog.pop(entity)
-                        value.__class__.Catalog[self] = value
+                vCatalog = value.__class__.Catalog
+                if value.entity is None:
+                    value.entity = self
+                    # Update the component catalog with the entry
+                    for entity, comp in vCatalog.items():
+                        if comp == value:
+                            if entity in vCatalog:
+                                vCatalog.pop(entity)
+                            vCatalog[self] = value
+            # Even if it is not technically a component, still add it
+            #  as a simple 'attribute' component.
             self.components[key] = value
 
     def __del__(self):
         '''Remove the relationship from all component data'''
-        for attr, component in self.components.iteritems():
+        for attr, component in self.components.items():
             component.entity = None
             component.__class__.Catalog.pop(self)
         self.__class__.Catalog.pop(self)
@@ -148,13 +154,18 @@ class Component(object):
     True
     '''
 
-    __slots__ = ['defaults', 'entity', 'Catalog']
+    __slots__ = ['defaults', 'entity', 'Catalog', 'ComponentTypes']
     defaults = {}
     Catalog = {}
+    ComponentTypes = {}
 
     def __new__(cls, entity=None, **properties):
+        cname = cls.__name__
+        if cname not in Component.ComponentTypes:
+            Component.ComponentTypes[cname] = cls
+            cls.Catalog = {}
         if entity not in cls.Catalog:
-            component = super(Component, cls).__new__(cls, entity, **properties)
+            component = super(Component, cls).__new__(cls, entity=entity, **properties)
             cls.Catalog[entity] = component
         else:
             component = cls.Catalog[entity]
@@ -234,6 +245,7 @@ class ComponentFactory(object):
         # new_class = type(type_name, type_class_bases, type_attributes)
         defaults = dict((k, v) for k, v in attributes.iteritems())
         if title not in cls.Catalog:
+            Component.ComponentTypes[title] = cls
             template_cls = type(title, (Component, ), attributes)
             template_cls.Catalog = {}
             template_cls.defaults = defaults
@@ -281,24 +293,40 @@ class System(object):
     >>> sorted(MovementSystem.components)
     [<Position entity:player.position>, <Position entity:skeleton.position>, <Velocity entity:player.velocity>, <Velocity entity:skeleton.velocity>]
     '''
+    components = []
+    Catalog = {}
+
+    def __new__(cls, name=None, components=[]):
+        name = cls.__name__ if name is None else name
+        if name not in System.Catalog:
+            system = super(System, cls).__new__(cls, name=name, components=components)
+            System.Catalog[name] = system
+        else:
+            system = System.Catalog[name]
+        return system
+
+    def __init__(self, name=None, components=[]):
+        self.name = name
+        if components:
+            self.components = components
 
     @property
     def entities(self):
         return list(set(entity
-                        for component_cls in self.component_classes.values()
+                        for component_cls in self.component_classes
                         for entity in component_cls.Catalog.keys()
                         if entity is not None))
 
-    @property
-    def components(self):
-        return list(set(component
-                   for component_cls in self.component_classes.values()
-                   for component in component_cls.Catalog.values()
-                   if component is not None))
 
-    def __init__(self, name, **components):
-        self.name = name
-        self.component_classes = components
+    @property
+    def component_classes(self):
+        return list(set(Component.ComponentTypes.get(component_name)
+                        for component_name in self.components
+                        if component_name in Component.ComponentTypes
+                        ))
+
+    def get_components(self):
+        '''Creates a dictionary of component classes'''
 
     def update(self, dt=None):
         '''Runs an update on the various components'''
