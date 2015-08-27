@@ -5,10 +5,11 @@ Entity Component System for Python
 ecs.py provides a convenient library to utilize for the ECS pattern.
 
 '''
+from collections import OrderedDict as dict
 import json
 from uuid import uuid4
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 __license__ = 'Apache 2.0'
 __url__ = 'http://learnpythonandmakegames.github.io/ecs/'
 __author__ = 'Learn Python and Make Games'
@@ -164,18 +165,20 @@ class Component(object):
         if cname not in Component.ComponentTypes:
             Component.ComponentTypes[cname] = cls
             cls.Catalog = {}
-        if entity not in cls.Catalog:
-            component = super(Component, cls).__new__(cls, entity=entity, **properties)
-            cls.Catalog[entity] = component
+        if entity is not None:
+            if entity not in cls.Catalog:
+                component = super(Component, cls).__new__(cls, entity=entity, **properties)
+                cls.Catalog[entity] = component
+            else:
+                component = cls.Catalog[entity]
         else:
-            component = cls.Catalog[entity]
+            component = super(Component, cls).__new__(cls, entity=entity, **properties)
         return component
 
     def __init__(self, entity=None, **properties):
         self.entity = entity
-        for prop, val in properties.iteritems():
-            if prop in self.defaults:
-                setattr(self, prop, val)
+        for prop, val in self.defaults.iteritems():
+            setattr(self, prop, properties.get(prop, val))
 
     def get(self, key, default):
         '''Provides a way to look up a key without creating an exception
@@ -193,8 +196,16 @@ class Component(object):
         for prop in self.defaults:
             yield prop
 
+    def __getitem__(self, key):
+        '''Makes it possible to access attributes as an index'''
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        '''Makes it possible to modify attributes as an index'''
+        setattr(self, key, value)
+
     def __repr__(self):
-        '''Just dump the json of the properties
+        '''Just show the minimum needed
         '''
         cname = self.__class__.__name__
         title = ''
@@ -209,7 +220,7 @@ class Component(object):
         '''Just dump the json of the properties
         '''
         keys = self.defaults.keys()
-        data = {}
+        data = dict()
         for key in keys:
             if key != 'defaults':
                 data[key] = getattr(self, key, self.defaults.get(key))
@@ -221,11 +232,13 @@ class Component(object):
 
     def __del__(self):
         '''Remove the relationship from the entity'''
-        for attr, component in self.entity.components.iteritems():
-            if component == self:
-                self.entity.components.pop(attr)
-                break
-        self.__class__.components.pop(self.entity)
+        if self.entity:
+            for attr, component in self.entity.components.iteritems():
+                if component == self:
+                    self.entity.components.pop(attr)
+                    break
+        if self.entity in self.__class__.Catalog:
+            self.__class__.Catalog.pop(self.entity)
 
 
 class ComponentFactory(object):
