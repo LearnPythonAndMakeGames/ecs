@@ -1,7 +1,7 @@
 #!/usr/bin/env python
+from collections import OrderedDict as dict
 from random import randint
 
-from math import cos, sin
 from ecs import Component
 
 
@@ -19,8 +19,9 @@ class Health(Component):
         "max": 100
     }
     '''
+    defaults = dict([('current', 100), ('max', 100)])
 
-    defaults = dict(current=100, max=100)
+    __slots__ = ('entity', 'Catalog', 'ComponentTypes', 'current', 'max')
 
     @property
     def alive(self):
@@ -29,8 +30,9 @@ class Health(Component):
 
 class Damage(Component):
     '''Simple damage data for a given entity'''
+    defaults = dict([('normal', 10), ('critical', 15), ('critical_percent', 10)])
 
-    defaults = dict(normal=10, critical=15, critical_percent=10)
+    __slots__ = ('entity', 'Catalog', 'ComponentTypes', 'normal', 'critical', 'critical_percent')
 
     def __call__(self):
         '''Returns a damage calc based on properties'''

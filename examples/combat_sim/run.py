@@ -6,12 +6,11 @@ Description:
 Usage: run [options]
 
 Options:
-    -c --cowboys NUMBER    Number of cowboys [default: 4]
-    -a --aliens NUMBER     Number of aliens [default: 4]
+    -c --cowboys NUMBER    Number of cowboys [default: 10]
+    -a --aliens NUMBER     Number of aliens [default: 10]
 '''
 from entities import setup_entities
 from systems import CombatSystem
-
 
 def simulate(number_of_cowboys, number_of_aliens):
     '''Simulates combat between aliens and cowboys'''

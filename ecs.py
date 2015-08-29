@@ -8,6 +8,7 @@ ecs.py provides a convenient library to utilize for the ECS pattern.
 from collections import OrderedDict as dict
 import json
 from uuid import uuid4
+import sys
 
 __version__ = '0.1.3'
 __license__ = 'Apache 2.0'
@@ -41,7 +42,7 @@ class Entity(object):
     '''
     Catalog = {}
 
-    __slots__ = ['uid', 'name', 'components', 'Catalog']
+    __slots__ = ('uid', 'name', 'components')
 
     def __new__(cls, name=None, uid=None):
         '''We only want one entity with the same name
@@ -55,11 +56,16 @@ class Entity(object):
         True
         '''
         if name not in cls.Catalog:
-            entity = super(Entity, cls).__new__(cls, name, uid)
+            sup = super() if sys.version.startswith('3') else super(Entity, cls)
+            # entity = super(Entity, cls).__new__(cls, name, uid)
+            entity = sup.__new__(cls)
             cls.Catalog[name] = entity
         else:
             entity = cls.Catalog[name]
         return entity
+
+    def __hash__(self):
+        return hash(self.uid)
 
     def __init__(self, name=None, uid=None):
         self.uid = uuid4() if uid is None else uid
@@ -98,16 +104,18 @@ class Entity(object):
     def __getattr__(self, key, *args, **kwds):
         '''Allows access to properties as an attribute:
         '''
-        if key in super(Entity, self).__getattribute__('__slots__'):
-            return super(Entity, self).__getattr__(key)
+        sup = super() if sys.version.startswith('3') else super(Entity, self)
+        if key in sup.__getattribute__('__slots__'):
+            return sup.__getattr__(key)
         else:
             return self.components[key]
 
     def __setattr__(self, key, value):
         '''Allows modification to properties as an attribute:
         '''
-        if key in super(Entity, self).__getattribute__('__slots__'):
-            super(Entity, self).__setattr__(key, value)
+        sup = super() if sys.version.startswith('3') else super(Entity, self)
+        if key in sup.__getattribute__('__slots__'):
+            sup.__setattr__(key, value)
         else:
             # Create relationships between the entity and components
             if isinstance(value, Component):
@@ -127,9 +135,10 @@ class Entity(object):
     def __del__(self):
         '''Remove the relationship from all component data'''
         for attr, component in self.components.items():
-            component.entity = None
-            component.__class__.Catalog.pop(self)
-        self.__class__.Catalog.pop(self)
+            if hasattr(component, 'entity'):
+                component.entity = None
+                component.__class__.Catalog.pop(self)
+        self.__class__.Catalog.pop(self.name)
 
 
 class Component(object):
@@ -155,29 +164,37 @@ class Component(object):
     True
     '''
 
-    __slots__ = ['defaults', 'entity', 'Catalog', 'ComponentTypes']
+    __slots__ = ('entity')
     defaults = {}
     Catalog = {}
     ComponentTypes = {}
 
     def __new__(cls, entity=None, **properties):
         cname = cls.__name__
+        sup = super() if sys.version.startswith('3') else super(Component, cls)
         if cname not in Component.ComponentTypes:
             Component.ComponentTypes[cname] = cls
             cls.Catalog = {}
         if entity is not None:
             if entity not in cls.Catalog:
-                component = super(Component, cls).__new__(cls, entity=entity, **properties)
+                component = sup.__new__(cls)
                 cls.Catalog[entity] = component
             else:
                 component = cls.Catalog[entity]
         else:
-            component = super(Component, cls).__new__(cls, entity=entity, **properties)
+            component = sup.__new__(cls)
         return component
+
+    def __hash__(self):
+        return (hash(self.Catalog) ^
+                hash(self.ComponentTypes) ^
+                hash(self.defaults) ^
+                hash(self.entity) ^
+                hash(self))
 
     def __init__(self, entity=None, **properties):
         self.entity = entity
-        for prop, val in self.defaults.iteritems():
+        for prop, val in self.defaults.items():
             setattr(self, prop, properties.get(prop, val))
 
     def get(self, key, default):
@@ -187,7 +204,7 @@ class Component(object):
 
     def reset(self):
         '''Returns component to default state'''
-        for prop, val in self.defaults.iteritems():
+        for prop, val in self.defaults.items():
             setattr(self, prop, val)
 
     def __iter__(self):
@@ -210,7 +227,7 @@ class Component(object):
         cname = self.__class__.__name__
         title = ''
         if self.entity:
-            for prop_name, component in self.entity.components.iteritems():
+            for prop_name, component in self.entity.components.items():
                 if component == self:
                     title = ' entity:{}.{}'.format(self.entity.name, prop_name)
                     break
@@ -233,7 +250,7 @@ class Component(object):
     def __del__(self):
         '''Remove the relationship from the entity'''
         if self.entity:
-            for attr, component in self.entity.components.iteritems():
+            for attr, component in self.entity.components.items():
                 if component == self:
                     self.entity.components.pop(attr)
                     break
@@ -250,13 +267,13 @@ class ComponentFactory(object):
     '''
     Catalog = {}
 
-    __slots__ = ['Catalog']
+    __slots__ = ()
 
     def __new__(cls, title, **attributes):
         '''Ties name of component to a specific instance, which is shared by
         all components of the same template'''
         # new_class = type(type_name, type_class_bases, type_attributes)
-        defaults = dict((k, v) for k, v in attributes.iteritems())
+        defaults = dict((k, v) for k, v in attributes.items())
         if title not in cls.Catalog:
             Component.ComponentTypes[title] = cls
             template_cls = type(title, (Component, ), attributes)
@@ -309,10 +326,13 @@ class System(object):
     components = []
     Catalog = {}
 
+    __slots__ = ()
+
     def __new__(cls, name=None, components=[]):
         name = cls.__name__ if name is None else name
+        sup = super() if sys.version.startswith('3') else super(System, cls)
         if name not in System.Catalog:
-            system = super(System, cls).__new__(cls, name=name, components=components)
+            system = sup.__new__(cls)
             System.Catalog[name] = system
         else:
             system = System.Catalog[name]
