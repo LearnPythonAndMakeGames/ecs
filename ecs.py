@@ -56,9 +56,7 @@ class Entity(object):
         True
         '''
         if name not in cls.Catalog:
-            sup = super() if sys.version.startswith('3') else super(Entity, cls)
-            # entity = super(Entity, cls).__new__(cls, name, uid)
-            entity = sup.__new__(cls)
+            entity = super(Entity, cls).__new__(cls)
             cls.Catalog[name] = entity
         else:
             entity = cls.Catalog[name]
@@ -104,18 +102,16 @@ class Entity(object):
     def __getattr__(self, key, *args, **kwds):
         '''Allows access to properties as an attribute:
         '''
-        sup = super() if sys.version.startswith('3') else super(Entity, self)
-        if key in sup.__getattribute__('__slots__'):
-            return sup.__getattr__(key)
+        if key in super(Entity, self).__getattribute__('__slots__'):
+            return super(Entity, self).__getattr__(key)
         else:
             return self.components[key]
 
     def __setattr__(self, key, value):
         '''Allows modification to properties as an attribute:
         '''
-        sup = super() if sys.version.startswith('3') else super(Entity, self)
-        if key in sup.__getattribute__('__slots__'):
-            sup.__setattr__(key, value)
+        if key in super(Entity, self).__getattribute__('__slots__'):
+            super(Entity, self).__setattr__(key, value)
         else:
             # Create relationships between the entity and components
             if isinstance(value, Component):
@@ -171,18 +167,17 @@ class Component(object):
 
     def __new__(cls, entity=None, **properties):
         cname = cls.__name__
-        sup = super() if sys.version.startswith('3') else super(Component, cls)
         if cname not in Component.ComponentTypes:
             Component.ComponentTypes[cname] = cls
             cls.Catalog = {}
         if entity is not None:
             if entity not in cls.Catalog:
-                component = sup.__new__(cls)
+                component = super(Component, cls).__new__(cls)
                 cls.Catalog[entity] = component
             else:
                 component = cls.Catalog[entity]
         else:
-            component = sup.__new__(cls)
+            component = super(Component, cls).__new__(cls)
         return component
 
     def __hash__(self):
@@ -330,9 +325,8 @@ class System(object):
 
     def __new__(cls, name=None, components=[]):
         name = cls.__name__ if name is None else name
-        sup = super() if sys.version.startswith('3') else super(System, cls)
         if name not in System.Catalog:
-            system = sup.__new__(cls)
+            system = super(System, cls).__new__(cls)
             System.Catalog[name] = system
         else:
             system = System.Catalog[name]
