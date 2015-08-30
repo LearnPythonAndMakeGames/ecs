@@ -3,19 +3,18 @@
 Description:
     Runs a combat simulator -- Cowboys vs Aliens
 
-Usage: run [options]
+Usage: run [options] [--memory | --compute]
 
 Options:
     -c --cowboys NUMBER    Number of cowboys [default: 10]
     -a --aliens NUMBER     Number of aliens [default: 10]
     -q --quiet             Reduces verbosity
+    -m --memory            Profiles memory
+    -x --compute           Profiles execution time
 '''
 from entities import setup_entities
 from systems import CombatSystem
 
-from memory_profiler import profile
-
-# @profile
 def simulate(number_of_cowboys, number_of_aliens, quiet=False):
     '''Simulates combat between aliens and cowboys'''
     combat_system = CombatSystem()
@@ -68,12 +67,44 @@ def handle_cli():
     kwds = {
         'number_of_cowboys': int(args.get('--cowboys')),
         'number_of_aliens': int(args.get('--aliens')),
-        'quiet': args.get('--quiet', None)
+        'quiet': args.get('--quiet', None),
+        'memory': args.get('--memory', None),
+        'compute': args.get('--compute', None)
     }
 
     return kwds
 
 if __name__ == '__main__':
     kwds = handle_cli()
-    simulate(**kwds)
+    use_memory_profiler = kwds.pop('memory')
+    use_compute_profiler = kwds.pop('compute')
+
+    # Adds a method for benchmarking memory
+    if use_memory_profiler:
+        from memory_profiler import profile
+        # Hack for on-demand decoration
+        simulate = profile()(simulate)
+        simulate(**kwds)
+
+    # Adds a method for benchmarking compute
+    elif use_compute_profiler:
+        import cProfile as profile
+        import os
+        import pstats
+        import sys
+
+        cmd = 'simulate({number_of_cowboys}, {number_of_aliens}, {quiet})'
+        cmd = cmd.format(**kwds)
+        if not os.path.exists('benchmarks'):
+            os.mkdir('benchmarks')
+        version = sys.version.split(' ')[0]
+        fname = 'benchmarks/compute.{}.bin'.format(str(version))
+        profile.run(cmd, fname)
+
+        p = pstats.Stats(fname)
+        p.strip_dirs().sort_stats('cumulative').print_stats(10)
+
+    # Otherwise just run it
+    else:
+        simulate(**kwds)
 
